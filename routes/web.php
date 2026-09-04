@@ -4,6 +4,7 @@ use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\TransactionController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -18,6 +19,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::resource('accounts', AccountController::class);
     Route::resource('categories', CategoryController::class);
+    Route::resource('transactions', TransactionController::class)->except(['show', 'edit', 'update']);
 });
 
 Route::middleware('auth')->group(function () {
@@ -25,5 +27,6 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
+
 
 require __DIR__.'/auth.php';

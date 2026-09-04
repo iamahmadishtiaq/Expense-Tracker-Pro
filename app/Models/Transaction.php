@@ -17,6 +17,14 @@ class Transaction extends Model
         'to_account_id',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'transaction_date' => 'date',
+            'amount' => 'decimal:2',
+        ];
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class);
