@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Account;
 use Illuminate\Http\Request;
-use app\Http\Requests\StoreAccountRequest;
-use app\Http\Requests\UpdateAccountRequest;
+use App\Http\Requests\StoreAccountRequest;
+use App\Http\Requests\UpdateAccountRequest;
 
 class AccountController extends Controller
 {
