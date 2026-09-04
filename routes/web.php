@@ -3,6 +3,7 @@
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\CategoryController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -15,8 +16,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return view('dashboard');
     })->name('dashboard');
 
-    // Yeh line add karni hai:
     Route::resource('accounts', AccountController::class);
+    Route::resource('categories', CategoryController::class);
 });
 
 Route::middleware('auth')->group(function () {
