@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use App\Models\Category;
 use App\Models\Transaction;
 use App\Http\Requests\StoreTransactionRequest;
+use Illuminate\Validation\Rule;
 
 
 class TransactionController extends Controller
@@ -64,33 +65,41 @@ class TransactionController extends Controller
      */
     public function store(StoreTransactionRequest $request)
     {
-        $validated = $request->validated();
         $userId = auth()->id();
+        $validated = $request->validated();
 
+        // Nullify irrelevant foreign keys
+        if ($validated['type'] === 'transfer') {
+            $validated['category_id'] = null;
+        } else {
+            $validated['to_account_id'] = null;
+        }
+
+        // Database Execution
         DB::transaction(function () use ($validated, $userId) {
-            $account = Account::where('id', $validated['account_id'])
-            ->where('user_id', $userId)
-            ->lockForUpdate()
-            ->firstOrFail();
-
-            if($validated['type'] === 'income') {
-                $account->increment('current_balance', $validated['amount']);
-            } elseif($validated['type'] === 'expense') {
-                $account->decrement('current_balance', $validated['amount']);
-            }elseif($validated['type'] === 'transfer') {
-                $toAccount = Account::where('id', $validated['to_account_id'])
+            $sourceAccount = Account::where('id', $validated['account_id'])
                 ->where('user_id', $userId)
                 ->lockForUpdate()
                 ->firstOrFail();
 
-                $account->decrement('current_balance', $validated['amount']);
-                $toAccount->increment('current_balance', $validated['amount']);
+            if ($validated['type'] === 'income') {
+                $sourceAccount->increment('current_balance', $validated['amount']);
+            } elseif ($validated['type'] === 'expense') {
+                $sourceAccount->decrement('current_balance', $validated['amount']);
+            } elseif ($validated['type'] === 'transfer') {
+                $targetAccount = Account::where('id', $validated['to_account_id'])
+                    ->where('user_id', $userId)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $sourceAccount->decrement('current_balance', $validated['amount']);
+                $targetAccount->increment('current_balance', $validated['amount']);
             }
 
             Transaction::create(array_merge($validated, ['user_id' => $userId]));
         });
 
-        return redirect()->route('transactions.index')->with('success', 'Transaction saved successfully.');
+        return redirect()->route('transactions.index')->with('success', 'Transaction saved successfully!');
     }
 
     /**

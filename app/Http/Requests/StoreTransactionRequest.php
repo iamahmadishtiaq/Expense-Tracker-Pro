@@ -2,31 +2,43 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreTransactionRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, ValidationRule|array<mixed>|string>
-     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('type')) {
+            $this->merge([
+                'type' => strtolower(trim((string) $this->type)),
+            ]);
+        }
+    }
+
     public function rules(): array
     {
+        $type = $this->input('type');
+
         return [
-            'type' => ['required', 'in:income,expense,trasnfer'],
-            'account_id' => ['required', 'exists:accounts,id'],
-            'category_id'=> ['nullable', 'required_unless:type,transfer', 'exists:categories,id'],
-            'to_account_id' => ['nullable', 'required_if:type,transfer', 'different:account_id', 'exists:accounts,id'],
+            'type' => ['required', 'string', Rule::in(['income', 'expense', 'transfer'])],
+            'account_id' => ['required', 'integer', 'exists:accounts,id'],
+            'to_account_id' => [
+                'nullable',
+                Rule::requiredIf($type === 'transfer'),
+                'different:account_id',
+                'exists:accounts,id',
+            ],
+            'category_id' => [
+                'nullable',
+                Rule::requiredIf($type !== 'transfer'),
+                'exists:categories,id',
+            ],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'transaction_date' => ['required', 'date'],
             'description' => ['nullable', 'string', 'max:500'],
