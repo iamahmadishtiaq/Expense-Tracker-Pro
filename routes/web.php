@@ -3,6 +3,7 @@
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\BudgetController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\DashboardController;
@@ -20,6 +21,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('accounts', AccountController::class);
     Route::resource('categories', CategoryController::class);
     Route::resource('transactions', TransactionController::class)->except(['show', 'edit', 'update']);
+    Route::resource('budgets', BudgetController::class)->only(['index', 'store', 'destroy']);
 });
 
 Route::middleware('auth')->group(function () {
