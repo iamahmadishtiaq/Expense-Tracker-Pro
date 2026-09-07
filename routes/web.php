@@ -7,6 +7,7 @@ use App\Http\Controllers\BudgetController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ReportController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -22,6 +23,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('categories', CategoryController::class);
     Route::resource('transactions', TransactionController::class)->except(['show', 'edit', 'update']);
     Route::resource('budgets', BudgetController::class)->only(['index', 'store', 'destroy']);
+    Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+    Route::get('/reports/export', [ReportController::class, 'exportCsv'])->name('reports.export');
 });
 
 Route::middleware('auth')->group(function () {

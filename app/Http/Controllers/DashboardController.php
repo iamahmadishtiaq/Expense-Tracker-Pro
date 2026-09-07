@@ -12,18 +12,19 @@ class DashboardController extends Controller
     public function index()
     {
         $user = auth()->user();
-        $currentMonth = Carbon::now()->month;
-        $currentYear = Carbon::now()->year;
+        $now = Carbon::now();
+        $currentMonth = $now->month;
+        $currentYear = $now->year;
 
-        $totalBalance = $user->accounts()->sum('current_balance');
+        $totalBalance = (float) $user->accounts()->sum('current_balance');
 
-        $monthlyIncome = $user->transactions()
+        $monthlyIncome = (float) $user->transactions()
             ->where('type', 'income')
             ->whereYear('transaction_date', $currentYear)
             ->whereMonth('transaction_date', $currentMonth)
             ->sum('amount');
 
-        $monthlyExpense = $user->transactions()
+        $monthlyExpense = (float) $user->transactions()
             ->where('type', 'expense')
             ->whereYear('transaction_date', $currentYear)
             ->whereMonth('transaction_date', $currentMonth)
@@ -32,12 +33,13 @@ class DashboardController extends Controller
         $monthlySavings = $monthlyIncome - $monthlyExpense;
 
         $expensesByCategory = Transaction::select(
-            'categories.name as category_name',
-            DB::raw('SUM(transactions.amount) as total_amount')
+                'categories.name as category_name',
+                DB::raw('SUM(transactions.amount) as total_amount')
             )
             ->join('categories', 'transactions.category_id', '=', 'categories.id')
             ->where('transactions.user_id', $user->id)
             ->where('transactions.type', 'expense')
+            ->whereNotNull('transactions.category_id')
             ->whereYear('transactions.transaction_date', $currentYear)
             ->whereMonth('transactions.transaction_date', $currentMonth)
             ->groupBy('categories.id', 'categories.name')
@@ -59,6 +61,5 @@ class DashboardController extends Controller
             'expensesByCategory',
             'recentTransactions'
         ));
-
     }
 }
