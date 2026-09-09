@@ -28,6 +28,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/reports/export', [ReportController::class, 'exportCsv'])->name('reports.export');
     Route::resource('recurring', RecurringTransactionController::class)->except(['show', 'edit', 'update']);
     Route::patch('recurring/{recurring}/toggle', [RecurringTransactionController::class, 'toggle'])->name('recurring.toggle');
+    Route::get('transactions/export', [TransactionController::class, 'exportCsv'])->name('transactions.export');
 });
 
 Route::middleware('auth')->group(function () {
