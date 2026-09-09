@@ -83,7 +83,7 @@ php artisan storage:link
 
 6.Compile Frontend Assets:
 npm run build
-# or for development:
+# for development:
 # npm run dev
 
 7.Start Local Server:
