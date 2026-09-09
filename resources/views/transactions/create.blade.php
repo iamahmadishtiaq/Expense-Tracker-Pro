@@ -20,7 +20,7 @@
             @endif
 
             <div class="bg-white dark:bg-gray-800 p-6 shadow sm:rounded-lg border border-gray-100 dark:border-gray-700" x-data="{ currentType: '{{ old('type', 'expense') }}' }">
-                <form action="{{ route('transactions.store') }}" method="POST" class="space-y-4">
+                <form action="{{ route('transactions.store') }}" method="POST" enctype="multipart/form-data" class="space-y-4">
                     @csrf
 
                     <div>
@@ -87,6 +87,20 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Description (Optional)</label>
                         <textarea name="description" rows="2" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">{{ old('description') }}</textarea>
+                    </div>
+
+                    <!-- Receipt Image Attachment -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Receipt / Bill Image (Optional)</label>
+                        <input type="file" name="receipt" accept="image/*" class="mt-1 block w-full text-sm text-gray-500 dark:text-gray-400
+                            file:mr-4 file:py-2 file:px-4
+                            file:rounded-md file:border-0
+                            file:text-sm file:font-semibold
+                            file:bg-indigo-600 file:text-white
+                            hover:file:bg-indigo-700
+                            dark:file:bg-indigo-600 dark:file:text-white dark:hover:file:bg-indigo-500
+                            border border-gray-300 dark:border-gray-600 rounded-md p-1 bg-white dark:bg-gray-700 cursor-pointer">
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Supported formats: JPG, PNG, WEBP (Max 3MB)</p>
                     </div>
 
                     <div class="flex justify-end space-x-3 pt-4">

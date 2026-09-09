@@ -5,11 +5,11 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Account;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use App\Models\Category;
 use App\Models\Transaction;
 use App\Http\Requests\StoreTransactionRequest;
 use Illuminate\Validation\Rule;
-
 
 class TransactionController extends Controller
 {
@@ -25,19 +25,19 @@ class TransactionController extends Controller
             ->latest('id');
 
         // Filter by type
-        if($request->filled('type')) {
+        if ($request->filled('type')) {
             $query->where('type', $request->type);
         }
-        if($request->filled('account_id')) {
+        if ($request->filled('account_id')) {
             $query->where('account_id', $request->account_id);
         }
-        if($request->filled('category_id')) {
+        if ($request->filled('category_id')) {
             $query->where('category_id', $request->category_id);
         }
-        if($request->filled('from_date')) {
+        if ($request->filled('from_date')) {
             $query->whereDate('transaction_date', '>=', $request->from_date);
         }
-        if($request->filled('to_date')) {
+        if ($request->filled('to_date')) {
             $query->whereDate('transaction_date', '<=', $request->to_date);
         }
 
@@ -68,6 +68,12 @@ class TransactionController extends Controller
         $userId = auth()->id();
         $validated = $request->validated();
 
+        // Handle receipt image upload
+        $receiptPath = null;
+        if ($request->hasFile('receipt')) {
+            $receiptPath = $request->file('receipt')->store('receipts', 'public');
+        }
+
         // Nullify irrelevant foreign keys
         if ($validated['type'] === 'transfer') {
             $validated['category_id'] = null;
@@ -76,7 +82,7 @@ class TransactionController extends Controller
         }
 
         // Database Execution
-        DB::transaction(function () use ($validated, $userId) {
+        DB::transaction(function () use ($validated, $userId, $receiptPath) {
             $sourceAccount = Account::where('id', $validated['account_id'])
                 ->where('user_id', $userId)
                 ->lockForUpdate()
@@ -96,7 +102,10 @@ class TransactionController extends Controller
                 $targetAccount->increment('current_balance', $validated['amount']);
             }
 
-            Transaction::create(array_merge($validated, ['user_id' => $userId]));
+            Transaction::create(array_merge($validated, [
+                'user_id' => $userId,
+                'receipt_path' => $receiptPath,
+            ]));
         });
 
         return redirect()->route('transactions.index')->with('success', 'Transaction saved successfully!');
@@ -133,19 +142,21 @@ class TransactionController extends Controller
     {
         abort_if($transaction->user_id !== auth()->id(), 403, 'Unauthorized action.');
 
-        DB::transaction(function () use ($transaction){
-            $account = Account::where('id', $transaction->account_id)
-            ->lockForUpdate()
-            ->first();
+        $receiptPath = $transaction->receipt_path;
 
-            if($transaction->type === 'income') {
-                $account?->decrement('current_balance', $transaction->amount);
-            } elseif($transaction->type === 'expense') {
-                $account?->increment('current_balance', $transaction->amount);
-            } elseif($transaction->type === 'transfer') {
-                $toAccount = Account::where('id', $transaction->to_account_id)
+        DB::transaction(function () use ($transaction) {
+            $account = Account::where('id', $transaction->account_id)
                 ->lockForUpdate()
                 ->first();
+
+            if ($transaction->type === 'income') {
+                $account?->decrement('current_balance', $transaction->amount);
+            } elseif ($transaction->type === 'expense') {
+                $account?->increment('current_balance', $transaction->amount);
+            } elseif ($transaction->type === 'transfer') {
+                $toAccount = Account::where('id', $transaction->to_account_id)
+                    ->lockForUpdate()
+                    ->first();
 
                 $account?->increment('current_balance', $transaction->amount);
                 $toAccount?->decrement('current_balance', $transaction->amount);
@@ -154,6 +165,11 @@ class TransactionController extends Controller
             $transaction->delete();
         });
 
-        return redirect()->route('transactions.index')->with('success', 'Transaction revert and deleted.');
+        // Delete uploaded file if exists
+        if ($receiptPath && Storage::disk('public')->exists($receiptPath)) {
+            Storage::disk('public')->delete($receiptPath);
+        }
+
+        return redirect()->route('transactions.index')->with('success', 'Transaction reverted and deleted.');
     }
 }

@@ -10,7 +10,7 @@
         </div>
     </x-slot>
 
-    <div class="py-8">
+    <div class="py-8" x-data="{ receiptModal: false, activeReceipt: '' }">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
             @if(session('success'))
                 <div class="p-4 bg-green-100 dark:bg-green-950 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 rounded-md text-sm">
@@ -84,7 +84,21 @@
                                     @endif
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-300">
-                                    {{ $t->category?->name ?? 'Transfer' }}
+                                    <div class="flex items-center space-x-2">
+                                        <span>{{ $t->category?->name ?? 'Transfer' }}</span>
+                                        @if($t->receipt_path)
+                                            <button 
+                                                type="button" 
+                                                @click="activeReceipt = '{{ asset('storage/' . $t->receipt_path) }}'; receiptModal = true"
+                                                class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition"
+                                                title="View Attached Receipt">
+                                                <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                                                </svg>
+                                                Receipt
+                                            </button>
+                                        @endif
+                                    </div>
                                     @if($t->description)
                                         <span class="text-xs text-gray-400 dark:text-gray-500 block mt-0.5">{{ $t->description }}</span>
                                     @endif
@@ -119,6 +133,27 @@
                         {{ $transactions->links() }}
                     </div>
                 @endif
+            </div>
+        </div>
+
+        <!-- Receipt Modal Preview -->
+        <div 
+            x-show="receiptModal" 
+            x-cloak
+            class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+            @click.self="receiptModal = false"
+            @keydown.escape.window="receiptModal = false">
+            <div class="relative max-w-2xl w-full bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+                <div class="flex justify-between items-center px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+                    <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-200">Transaction Receipt</h3>
+                    <div class="flex items-center space-x-2">
+                        <a :href="activeReceipt" target="_blank" class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">Open Full</a>
+                        <button type="button" @click="receiptModal = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-lg leading-none">&times;</button>
+                    </div>
+                </div>
+                <div class="p-4 flex items-center justify-center max-h-[75vh] overflow-auto bg-gray-100 dark:bg-gray-900">
+                    <img :src="activeReceipt" alt="Attached Receipt" class="max-h-[70vh] w-auto rounded object-contain shadow-sm">
+                </div>
             </div>
         </div>
     </div>

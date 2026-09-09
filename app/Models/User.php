@@ -49,5 +49,8 @@ class User extends Authenticatable
     {
         return $this->hasMany(Budget::class);
     }
-
+    public function recurringTransactions(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(RecurringTransaction::class);
+    }
 }

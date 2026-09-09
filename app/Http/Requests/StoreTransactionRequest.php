@@ -42,6 +42,7 @@ class StoreTransactionRequest extends FormRequest
             'amount' => ['required', 'numeric', 'min:0.01'],
             'transaction_date' => ['required', 'date'],
             'description' => ['nullable', 'string', 'max:500'],
+            'receipt' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:3072'], // Max 3MB
         ];
     }
 }
