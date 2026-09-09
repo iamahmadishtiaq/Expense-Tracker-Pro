@@ -37,7 +37,7 @@ A modern, full-stack personal finance management web application built with **La
 
 ## Tech Stack
 
-- **Backend:** PHP 8.2+, Laravel 11
+- **Backend:** PHP 8.2+, Laravel 13
 - **Database:** MySQL
 - **Frontend:** Blade, Tailwind CSS, Alpine.js
 - **Icons & Assets:** Heroicons, Vite
