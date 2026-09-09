@@ -99,17 +99,7 @@ Password: password
 
 Recurring Transactions Scheduler
 To test recurring transactions processing manually via CLI:
-
 php artisan transactions:process-recurring
-
-Database Architecture
-Table                  Description
-users                  Authenticated users and authentication tokens
-accounts               Payment sources (Bank, Cash, Wallets) with active balances
-categories             Income and Expense classifications
-transactions           Ledger records with receipts, amounts, types, and accounts
-budgets                Monthly spending limits categorized per user
-recurring_transactions Automated recurring profiles with schedule intervals
 
 License
 This project is open-sourced software licensed under the MIT license.
