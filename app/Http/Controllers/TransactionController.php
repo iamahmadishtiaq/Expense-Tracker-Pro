@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Account;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
+use App\Models\Budget;
 use App\Models\Category;
 use App\Models\Transaction;
 use App\Http\Requests\StoreTransactionRequest;
+use App\Notifications\BudgetAlertNotification;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -66,7 +68,8 @@ class TransactionController extends Controller
      */
     public function store(StoreTransactionRequest $request)
     {
-        $userId = auth()->id();
+        $user = auth()->user();
+        $userId = $user->id;
         $validated = $request->validated();
 
         // Handle receipt image upload
@@ -108,6 +111,48 @@ class TransactionController extends Controller
                 'receipt_path' => $receiptPath,
             ]));
         });
+
+        // Check & Trigger Budget Overrun Notification
+        if ($validated['type'] === 'expense' && !empty($validated['category_id'])) {
+            $now = now();
+            $budget = Budget::with('category')
+                ->where('user_id', $userId)
+                ->where('category_id', $validated['category_id'])
+                ->where('month', (int) $now->format('m'))
+                ->first();
+
+            if ($budget && $budget->amount > 0) {
+                $totalSpent = (float) Transaction::where('user_id', $userId)
+                    ->where('category_id', $budget->category_id)
+                    ->where('type', 'expense')
+                    ->whereMonth('transaction_date', $now->month)
+                    ->whereYear('transaction_date', $now->year)
+                    ->sum('amount');
+
+                $budgetLimit = (float) $budget->amount;
+                $percentage = round(($totalSpent / $budgetLimit) * 100, 1);
+
+                if ($percentage >= 80) {
+                    $categoryTitle = $budget->category?->name ?? 'Category';
+
+                    // Prevent duplicate notifications on the same day for this category
+                    $alreadyNotified = $user->unreadNotifications()
+                        ->where('data->category', $categoryTitle)
+                        ->whereDate('created_at', $now->toDateString())
+                        ->exists();
+
+                    if (!$alreadyNotified) {
+                        $user->notify(new BudgetAlertNotification(
+                            $categoryTitle,
+                            $totalSpent,
+                            $budgetLimit,
+                            $percentage,
+                            $percentage >= 100
+                        ));
+                    }
+                }
+            }
+        }
 
         return redirect()->route('transactions.index')->with('success', 'Transaction saved successfully!');
     }
@@ -174,59 +219,61 @@ class TransactionController extends Controller
         return redirect()->route('transactions.index')->with('success', 'Transaction reverted and deleted.');
     }
 
+    /**
+     * Export transactions as CSV stream.
+     */
+    public function exportCsv(Request $request): StreamedResponse
+    {
+        $user = auth()->user();
+        $query = $user->transactions()
+            ->with(['account', 'toAccount', 'category'])
+            ->latest('transaction_date')
+            ->latest('id');
 
-public function exportCsv(Request $request): StreamedResponse
-{
-    $user = auth()->user();
-    $query = $user->transactions()
-        ->with(['account', 'toAccount', 'category'])
-        ->latest('transaction_date')
-        ->latest('id');
+        if ($request->filled('type')) {
+            $query->where('type', $request->type);
+        }
+        if ($request->filled('account_id')) {
+            $query->where('account_id', $request->account_id);
+        }
+        if ($request->filled('category_id')) {
+            $query->where('category_id', $request->category_id);
+        }
+        if ($request->filled('from_date')) {
+            $query->whereDate('transaction_date', '>=', $request->from_date);
+        }
+        if ($request->filled('to_date')) {
+            $query->whereDate('transaction_date', '<=', $request->to_date);
+        }
 
-    if ($request->filled('type')) {
-        $query->where('type', $request->type);
+        $fileName = 'transactions_' . now()->format('Y_m_d_His') . '.csv';
+
+        return response()->streamDownload(function () use ($query) {
+            $handle = fopen('php://output', 'w');
+
+            // CSV Headers
+            fputcsv($handle, ['ID', 'Date', 'Type', 'Account', 'Transfer To', 'Category', 'Amount (PKR)', 'Description']);
+
+            // Chunking prevents memory overflow
+            $query->chunk(250, function ($transactions) use ($handle) {
+                foreach ($transactions as $tx) {
+                    fputcsv($handle, [
+                        $tx->id,
+                        $tx->transaction_date->format('Y-m-d'),
+                        ucfirst($tx->type),
+                        $tx->account?->name ?? 'N/A',
+                        $tx->toAccount?->name ?? '-',
+                        $tx->category?->name ?? '-',
+                        $tx->amount,
+                        $tx->description ?? '',
+                    ]);
+                }
+            });
+
+            fclose($handle);
+        }, $fileName, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"{$fileName}\"",
+        ]);
     }
-    if ($request->filled('account_id')) {
-        $query->where('account_id', $request->account_id);
-    }
-    if ($request->filled('category_id')) {
-        $query->where('category_id', $request->category_id);
-    }
-    if ($request->filled('from_date')) {
-        $query->whereDate('transaction_date', '>=', $request->from_date);
-    }
-    if ($request->filled('to_date')) {
-        $query->whereDate('transaction_date', '<=', $request->to_date);
-    }
-
-    $fileName = 'transactions_' . now()->format('Y_m_d_His') . '.csv';
-
-    return response()->streamDownload(function () use ($query) {
-        $handle = fopen('php://output', 'w');
-
-        // CSV Headers
-        fputcsv($handle, ['ID', 'Date', 'Type', 'Account', 'Transfer To', 'Category', 'Amount (PKR)', 'Description']);
-
-        // Chunking prevents memory overflow
-        $query->chunk(250, function ($transactions) use ($handle) {
-            foreach ($transactions as $tx) {
-                fputcsv($handle, [
-                    $tx->id,
-                    $tx->transaction_date->format('Y-m-d'),
-                    ucfirst($tx->type),
-                    $tx->account?->name ?? 'N/A',
-                    $tx->toAccount?->name ?? '-',
-                    $tx->category?->name ?? '-',
-                    $tx->amount,
-                    $tx->description ?? '',
-                ]);
-            }
-        });
-
-        fclose($handle);
-    }, $fileName, [
-        'Content-Type' => 'text/csv',
-        'Content-Disposition' => "attachment; filename=\"{$fileName}\"",
-    ]);
-}
 }

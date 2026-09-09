@@ -18,7 +18,7 @@ Route::get('/', function () {
 // Breeze ke auth routes ke baad ya sath:
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])
-    ->name('dashboard');
+        ->name('dashboard');
 
     Route::resource('accounts', AccountController::class);
     Route::resource('categories', CategoryController::class);
@@ -37,5 +37,10 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
+Route::post('notifications/mark-as-read', function () {
+    auth()->user()->unreadNotifications->markAsRead();
+    return back();
+})->name('notifications.markRead');
 
-require __DIR__.'/auth.php';
+
+require __DIR__ . '/auth.php';
